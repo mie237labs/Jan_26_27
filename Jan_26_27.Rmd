@@ -1,0 +1,132 @@
+---
+title: "MIE237 January 26-27 Labs"
+author: "Neil Montgomery"
+date: "January 25, 2016"
+output: pdf_document
+---
+
+```{r echo=FALSE, message=FALSE}
+# The libraries I'll need.
+library(rio)
+library(dplyr)
+library(knitr)
+library(ggplot2)
+```
+
+# Summary of you will do in this lab
+
+You'll do some textbook questions using "paired" $t$ procedures. Read the questions for background, but otherwise don't bother with what the book asks. Do what I ask here.
+
+1. 9.94 - produce a 95% confidence interval for the difference between the two means. 
+2. 10.43 - perform the hypothesis test with the null hypothesis that there is no difference between mean absolute time differences under the two experimental conditions.
+3. 10.45 - perform the hypothesis test with the null hypothesis that there is no difference between mean fuel consumption under the two experimental conditions.
+
+Then you'll produce some 95% confidence intervals for proportions using the simulated data from the January 22 lecture. Details below.
+
+# The usual advice
+
+I've told you where to get the textbook data. The PDF of this lab doesn't show all the code, but the `.Rmd` source file of the lab does. Data analysis consists of some graphical and/or numerical exploration, the analysis itself, a verification of assumptions, and a conclusion/interpretation.
+
+## "Paired" $t$ procedure fully worked example
+
+We'll look at 9.92 from the book. We looked at this one in class. While not part of the question or analysis, consider carefully why this experiment must be analyzed as a paired procedure, and try to think of an experimental design that would have answered the same question but using two independent samples.
+
+```{r, echo=FALSE}
+# I used fread=FALSE to deal with an error message I never fully understood.
+calc <- import("Ex09.92.txt", fread=FALSE)
+```
+
+Here is a numerical summary of the pairs.
+
+```{r, echo=FALSE}
+calc %>% 
+  mutate(Difference = Preburn - Postburn) -> calc_diff
+
+# Little table of numbers
+calc_diff %>% 
+  summarize(n = n(), mean = mean(Difference), sd = sd(Difference)) -> cd_summ
+kable(cd_summ)
+```
+
+To be honest I can't think of a worthwhile plot for only `r cd_summ$n` numbers.
+
+Here is the analysis for the mean difference in calcium.
+
+```{r, echo=FALSE}
+# Saves the results
+calc_diff_test <- t.test(calc_diff$Difference)
+# Prints the results
+calc_diff_test
+
+# This rounds and combines the confidence limits for pretty inclusion in text.
+# See help for 'paste' if you like.
+conf_limits <- paste(round(calc_diff_test$conf.int, 2), collapse = ", ")
+```
+
+The 95% confidence interval is [`r conf_limits`].
+
+We need to verify the normality assumption. Here is a normal quantile plot of the data.
+
+```{r, echo=FALSE, fig.width=4, fig.height=4, fig.align="center"}
+# If you're making a pdf you'll need to include the above options to make it
+# appear properly.
+calc_diff %>% 
+  ggplot(aes(sample=Difference)) + stat_qq()
+```
+
+Again, with only 12 points it is difficult to say, but it seems no wild deviation from normality is present, so the calculations are probably valid.
+
+## Confidence interval for a proportion examples
+
+### Aside---lots of ways to produce this C.I.
+
+The interval given in class is not actually implemented in base R. There's  an R package `binom` dedicated to the many different ways to calculate a confidence interval for a proportion, which is an area of active statistical research. They are all approximations, and they all have their pros and cons. For example, suppose $n=100$ and the number of "successes" is $k=30$. Here is a table of 11 (slightly) different intervals:
+
+```{r}
+library(binom)
+kable(binom.confint(30, 100), row.names = TRUE)
+```
+
+The one given in class is the "asymptotic" one. R's own built-in function is called `prop.test`. 
+
+Here are your options:
+1. Just use the built-in `prop.test` as-is (accepting that it will be slightly different from your hand calculations with the class formula.)
+2. Implement the class formula yourself, as it is very simple.
+3. Install the `binom` package and ask it for the interval it calls `asymptotic`. 
+
+### Trivial textbook example - 9.51
+
+This is a rote textbook exercise with $n=1000$ and $k=228$ the "number heated by oil". The question is already asked in the form of a "numerical summary" and there is no dataset to explore.
+
+I'll answer the question all three ways as outlined above.
+
+1. The function `prop.test` gives the interval [`r paste(round(prop.test(228, 1000)$conf.int, 3), collapse=", ")`].
+2. The class formula can be implemented as follows:
+```{r}
+n <- 1000
+k <- 228
+p_hat <- k/n
+z <- qnorm(0.975)
+
+(lower <- p_hat - z * sqrt(p_hat*(1 - p_hat)/1000))
+(upper <- p_hat + z * sqrt(p_hat*(1 - p_hat)/1000))
+```
+3. Or I could have used `binom.confint` from the `binom` package to get the class formula as follows:
+```{r}
+binom.confint(228, 1000, methods = "asymptotic")
+```
+
+To check the normality assumptions we note that $n\hat{p}$ and $n(1-\hat{p})$ both exceed 5, so the approximation is good. 
+
+## Simulated data from class
+
+The simulated data from class is closer to the kind of data one would encounter for estimating proportions. I've included the data in a spreadsheet as part of this lab. Look at the January 22 lecture slide source for ideas on numerical and graphical summaries.
+
+Your specific tasks (in addition to the summaries, assumption verification, and conclusion) are toproduce 95% confidence intervals for the following proportions:
+1. The proportion of gas mains that are made of Steel.
+2. The proportion of gas mains that are under High pressure.
+
+
+
+
+
